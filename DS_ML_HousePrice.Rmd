@@ -1,0 +1,99 @@
+---
+title: "DS_ML_HousePrice"
+author: "Tahani AlHarbi"
+date: "12/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(include = FALSE)
+```
+
+```{r}
+# Helper packages
+library(dplyr)     # for data manipulation
+library(ggplot2)   # for awesome graphics
+
+# Modeling process packages
+library(rsample)   # for resampling procedures
+library(caret)     # for resampling and model training
+library(h2o)       # for resampling and model training
+
+# h2o set-up 
+h2o.no_progress()  # turn off h2o progress bars
+h2o.init()         # launch h2o
+```
+
+
+
+
+
+
+
+
+```{r}
+house <- read.csv("data/data.csv")
+
+```
+
+
+
+```{r}
+house$statezip <- as.factor(house$statezip)
+house$city <- as.factor(house$city)
+house$street <- as.factor(house$street)
+```
+
+
+
+```{r}
+#change bathrooms, bedrooms into numeric 
+
+house$price <- as.numeric(house$price)
+house$bedrooms <- as.numeric(house$bedrooms)
+house$bathrooms <- as.numeric(house$bathrooms)
+
+```
+
+
+```{r}
+
+#we have statezip so we do not need for columns city, street 
+#drop column of country because it has just one value 
+#drop column of date beacuse it isn't necessary 
+
+
+house <- subset( house , select = -c( date,country, street,city) )
+
+str(house)
+
+
+```
+
+
+#### Data:
+ 
+
+```{r}
+head(house)
+```
+
+
+
+
+```{r}
+tail(house)
+```
+
+
+
+```{r}
+# initial dimension
+dim(house)
+# response variable
+head(house$price)
+```
+
+
+
+
