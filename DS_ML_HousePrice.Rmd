@@ -26,7 +26,11 @@ library(ggplot2)   # for awesome graphics
 library(rsample)   # for resampling procedures
 library(caret)     # for resampling and model training
 library(h2o)       # for resampling and model training
+library(visdat)   # for additional visualizations
 
+# Feature engineering packages
+library(caret)    # for various ML tasks
+library(recipes)  # for feature engineering tasks
 # h2o set-up 
 h2o.no_progress()  # turn off h2o progress bars
 h2o.init()         # launch h2o
@@ -155,7 +159,7 @@ house %>%
 ```
 
 
-obviously we don not have any missing values. 
+obviously we do not have any missing values. 
 
 
 
@@ -194,4 +198,243 @@ knn_fit
 ```{r}
 ggplot(knn_fit)
 ```
+
+
+
+#### **Features Engineering:**
+ applying features enginnering 
+
+filter zero variance and near-zero variance features
+  dimension reduction for highly correlated features
+  
+  
+```{r}
+# log transformation target variable
+house_recipe <- recipe(price ~ ., data = house_train) %>%
+  step_log(all_outcomes())
+```
+  
+  
+  
+```{r}
+blueprint <- recipe(price ~ ., data = house_train) %>%
+  step_nzv(all_nominal())  %>%
+  step_integer(matches("Qual|Cond|QC|Qu")) %>%
+  step_center(all_numeric(), -all_outcomes()) %>%
+  step_scale(all_numeric(), -all_outcomes()) %>%
+  step_pca(all_numeric(), -all_outcomes())
+  
+blueprint
+```
+  
+  
+```{r}
+prepare <- prep(blueprint, training = house_train)
+prepare
+```
+  
+  
+```{r}
+baked_train <- bake(prepare, new_data = house_train)
+baked_test <- bake(prepare, new_data = house_test)
+baked_train
+```
+  
+  
+  
+  
+  
+
+```{r}
+blueprint <- recipe(price ~ ., data = house_train) %>%
+  step_nzv(all_nominal()) %>%
+  step_integer(matches("Qual|Cond|QC|Qu")) %>%
+  step_center(all_numeric(), -all_outcomes()) %>%
+  step_scale(all_numeric(), -all_outcomes()) %>%
+  step_dummy(all_nominal(), -all_outcomes(), one_hot = TRUE)
+```
+
+
+
+```{r}
+# Specify resampling plan
+cv <- trainControl(
+  method = "repeatedcv", 
+  number = 10, 
+  repeats = 5
+)
+
+# Construct grid of hyperparameter values
+hyper_grid <- expand.grid(k = seq(2, 25, by = 1))
+
+# Tune a knn model using grid search
+knn_fit2 <- train(
+  blueprint, 
+  data = house_train, 
+  method = "knn", 
+  trControl = cv, 
+  tuneGrid = hyper_grid,
+  metric = "RMSE"
+)
+```
+
+
+
+```{r}
+# print model results
+knn_fit2
+
+```
+
+
+
+
+```{r}
+# plot cross validation results
+ggplot(knn_fit2)
+```
+
+
+#### Applay Linear regression: 
+
+
+
+##### simple linear regression: 
+
+```{r}
+model1 <- lm(price ~ sqft_living , data = house_train)
+summary(model1)
+```
+ 
+#### ** multiple linear regression**
+ 
+ 
+ multiple linear regression with 2 predictors 
+ and with all main features 
+
+```{r}
+# OLS model with two predictors
+model2 <- lm(price ~ sqft_living + yr_built, data = house_train)
+summary(model2)
+```
+
+
+
+
+
+```{r}
+# include all possible main effects
+model3 <- lm(price ~ ., data = house_train)
+summary(model3)
+```
+
+
+
+# Assessing model accuracy 
+
+fit 3 models  
+
+1. a single predictor, 
+2. two predictors, 
+3. all possible main effect predictors. 
+
+
+
+```{r}
+# create a resampling method
+cv <- trainControl(
+  method = "repeatedcv", 
+  number = 10, 
+  repeats = 5
+  )
+
+# model 1 CV
+set.seed(123)
+(cv_model1 <- train(
+  price ~ sqft_living, 
+  data = house_train, 
+  method = "lm", #<<
+  trControl = cv)
+)
+```
+
+
+
+```{r}
+# model 2 CV
+set.seed(123)
+cv_model2 <- train(
+  price ~ sqft_living + yr_built, 
+  data = house_train, 
+  method = "lm",
+  trControl = cv
+)
+
+# Extract out of sample performance measures
+summary(resamples(list(
+  model1 = cv_model1, 
+  model2 = cv_model2
+)))
+```
+
+
+
+
+#### # Model concerns - multicollinearity
+
+ we saw in EDA that sqft_above are highly correlated with sqft_living
+
+
+```{r}
+m1 <- lm(price ~ sqft_living + sqft_above , data = house_train) # 2 predictors
+
+coef(m1) 
+
+```
+
+visulaize 
+
+
+```{r}
+# The are highly correlated
+cor(house_train$sqft_living, house_train$sqft_above )
+
+# simple plot
+plot(house_train$sqft_living, house_train$sqft_above )
+```
+
+# Principal Component Regression
+
+
+so I will use priciple component regression to avoid multicollinearity 
+
+
+```{r}
+hyper_grid <- expand.grid(ncomp = seq(2, 40, by = 2))
+
+# 2. PCR
+set.seed(123)
+cv_pcr <- train(
+  price ~ ., 
+  data = house_train, 
+  trControl = cv,
+  method = "pcr", #<<
+  preProcess = c("zv", "center", "scale"), #<<
+  tuneGrid = hyper_grid, #<<
+  metric = "RMSE"
+  )
+
+# model with lowest RMSE
+cv_pcr$bestTune
+
+cv_pcr$results %>%
+  filter(ncomp == as.numeric(cv_pcr$bestTune))
+
+# plot cross-validated RMSE
+plot(cv_pcr)
+```
+
+
+
+
 
