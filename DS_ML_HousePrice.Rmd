@@ -5,6 +5,14 @@ date: "12/3/2020"
 output: html_document
 ---
 
+data from: https://www.kaggle.com/shree1992/housedata
+the data contains information  about houses in USA 
+it contains 18 variables and 4600 observation
+my main goal is to building a model to predict the price of a house
+based on specific features of the house.
+
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(include = FALSE)
 ```
@@ -95,5 +103,95 @@ head(house$price)
 ```
 
 
+#### **set h2o environment:**
 
+```{r}
+house.h2o <- as.h2o(house)
+```
+
+#### **Data Splitting**:
+
+```{r}
+# Stratified sampling with the rsample package
+set.seed(123) 
+split <- initial_split(house, prop = 0.7, 
+                       strata = "price")
+house_train  <- training(split)
+house_test   <- testing(split)
+```
+
+#### **To make sure training and test set have the same distributions:**
+
+```{r}
+# Do the distributions line up? 
+ggplot(house_train, aes(x = price)) + 
+  geom_line(stat = "density", 
+            trim = TRUE) + 
+  geom_line(data = house_test, 
+            stat = "density", 
+            trim = TRUE, col = "red")
+```
+
+
+#### **Missing valuse:** 
+
+visualize missing values 
+
+
+
+```{r}
+house %>%
+  is.na() %>%
+  reshape2::melt() %>%
+  ggplot(aes(Var2, Var1, fill=value)) + 
+    geom_raster() + 
+    coord_flip() +
+    scale_y_continuous(NULL, expand = c(0, 0)) +
+    scale_fill_grey(name = "", 
+                    labels = c("Present", 
+                               "Missing")) +
+    xlab("Observation") +
+    theme(axis.text.y  = element_text(size = 4))
+```
+
+
+obviously we don not have any missing values. 
+
+
+
+```{r}
+# Specify resampling strategy
+cv <- trainControl(
+  method = "repeatedcv", 
+  number = 10, 
+  repeats = 5
+)
+
+# Create grid of hyperparameter values
+hyper_grid <- expand.grid(k = seq(2, 25, by = 1))
+
+# Tune a knn model using grid search
+knn_fit <- train(
+  price ~ ., 
+  data = house_train, 
+  method = "knn", 
+  trControl = cv, 
+  tuneGrid = hyper_grid,
+  metric = "RMSE"
+)
+```
+
+
+
+
+```{r}
+# Print and plot the CV results
+knn_fit
+```
+
+
+
+```{r}
+ggplot(knn_fit)
+```
 
