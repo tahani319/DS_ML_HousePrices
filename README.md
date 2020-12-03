@@ -21,7 +21,7 @@ i use in this project some of algorithims and methods I have learned throught th
 this repositoy contains Rmd , Html and jupyter notebook
 
 
-**Data*: 
+**Data**: 
 
 I use this data from [kaggle] (https://www.kaggle.com/shree1992/housedata) 
 
