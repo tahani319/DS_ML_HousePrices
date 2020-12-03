@@ -13,7 +13,7 @@ based on specific features of the house.
 
 
 
-```{r setup, include=FALSE}
+```{r setup, include=TRUE}
 knitr::opts_chunk$set(include = FALSE)
 ```
 
@@ -333,7 +333,7 @@ summary(model1)
  
  
  multiple linear regression with 2 predictors 
-s 
+ 
 
 ```{r}
 # OLS model with two predictors
@@ -415,8 +415,8 @@ coef(m1)
 
 ```
 
-visulaize 
 
+see the correlation:
 
 ```{r}
 # The are highly correlated
@@ -488,10 +488,12 @@ plot(cv_pcr)
 
 #### **Partial least squares:**
 
-Using PLS 
+it Similar to PCR this technique also constructs a set of linear combinations of the inputs for regression, it uses the response variable to aid the construction of the principal components.
+
+
 
 ```{r}
-# PLS
+# using PLS
 set.seed(123)
 cv_pls <- train(
   price ~ ., 
@@ -541,6 +543,36 @@ gridExtra::grid.arrange(p1, p2, nrow = 1)  #comparison all models
 
 
 
+#### **Decision trees:**
+
+
+```{r}
+# Helper packages
+library(dplyr)       # for data wrangling
+library(ggplot2)     # for awesome plotting
+
+# Modeling packages
+library(rpart)       # direct engine for decision tree application
+library(caret)       # meta engine for decision tree application
+
+# Model interpretability packages
+install.packages("rpart.plot")
+library(rpart.plot)  # for plotting decision trees
+library(vip)         # for feature importance
+library(pdp)         # for feature effects
+```
+
+
+
+
+
+```{r}
+house_dt1 <- rpart(
+  formula = price ~ .,
+  data    = house_train,
+  method  = "anova"
+)
+```
 
 
 
@@ -549,19 +581,84 @@ gridExtra::grid.arrange(p1, p2, nrow = 1)  #comparison all models
 
 
 
+```{r}
+house_dt1
+```
 
 
 
 
 
+```{r}
+rpart.plot(house_dt1)
+```
+
+
+```{r}
+plotcp(house_dt1)
+```
+
+
+
+```{r}
+house_dt2 <- rpart(
+    formula = price ~ .,
+    data    = house_train,
+    method  = "anova", 
+    control = list(cp = 0, xval = 10)
+)
+
+plotcp(house_dt2)
+abline(v = 11, lty = "dashed")
+```
+#### **cross validation results: 
+
+```{r}
+# rpart cross validation results
+
+house_dt1$cptable
+```
+
+
+```{r}
+# caret cross validation results
+house_dt3 <- train(
+  price ~ .,
+  data = house_train,
+  method = "rpart",
+  trControl = trainControl(method = "cv", number = 10),
+  tuneLength = 20
+)
+
+```
+
+```{r}
+ggplot(house_dt3)
+```
 
 
 
 
+```{r}
+vip(house_dt3, num_features = 45, geom = "point")
+```
 
+#### Construct partial dependence plots:
 
+```{r}
+p1 <- partial(house_dt3, pred.var = "sqft_living") %>% 
+  ggplot(aes(sqft_living, yhat)) +
+  geom_line()
 
+p2 <- partial(house_dt3, pred.var = "yr_built") %>% 
+  ggplot(aes(yr_built, yhat)) +
+  geom_line()
 
+p3 <- partial(house_dt3, pred.var = c("sqft_living", "yr_built")) %>% 
+  plotPartial(levelplot = FALSE, zlab = "yhat", drape = TRUE, 
+              colorkey = TRUE, screen = list(z = -20, x = -60))
 
-
+# Display plots side by side
+gridExtra::grid.arrange(p1, p2, p3, ncol = 3)
+```
 
