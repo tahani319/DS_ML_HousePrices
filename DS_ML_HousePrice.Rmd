@@ -83,7 +83,7 @@ str(house)
 ```
 
 
-#### Data:
+#### **Data head:**
  
 
 ```{r}
@@ -91,7 +91,7 @@ head(house)
 ```
 
 
-
+#### **Data tail:** 
 
 ```{r}
 tail(house)
@@ -144,6 +144,7 @@ visualize missing values
 
 
 ```{r}
+#viualize missing values 
 house %>%
   is.na() %>%
   reshape2::melt() %>%
@@ -161,7 +162,9 @@ house %>%
 
 obviously we do not have any missing values. 
 
+#### **Resampling:**
 
+apply KNN model to data 
 
 ```{r}
 # Specify resampling strategy
@@ -186,27 +189,33 @@ knn_fit <- train(
 ```
 
 
-
+see results : 
 
 ```{r}
 # Print and plot the CV results
 knn_fit
 ```
 
-
+#### **visualize the fit 
 
 ```{r}
 ggplot(knn_fit)
 ```
+then i applied features engineering and do KNN model to  my data again 
+
+
 
 
 
 #### **Features Engineering:**
+
  applying features enginnering 
 
-filter zero variance and near-zero variance features
-  dimension reduction for highly correlated features
+  * log transformation for target variable 
+  * filter zero variance and near-zero variance features
+  * dimension reduction for highly correlated features
   
+  target variable is positively skewed so i will use log transformation : 
   
 ```{r}
 # log transformation target variable
@@ -214,8 +223,15 @@ house_recipe <- recipe(price ~ ., data = house_train) %>%
   step_log(all_outcomes())
 ```
   
-  
-  
+   
+   
+    blueprint process : 
+ 
+ Remove near-zero variance features that are categorical.
+Ordinal encode quality-based features 
+Center and scale all numeric features.
+Perform dimension reduction by applying PCA to all numeric features.
+
 ```{r}
 blueprint <- recipe(price ~ ., data = house_train) %>%
   step_nzv(all_nominal())  %>%
@@ -226,16 +242,21 @@ blueprint <- recipe(price ~ ., data = house_train) %>%
   
 blueprint
 ```
-  
+ 
+ 
+ Estimate parameters based on the training data of interest: 
   
 ```{r}
-prepare <- prep(blueprint, training = house_train)
+prepare <- prep(blueprint, training = house_train) #Estimate parameters based on the training data of interest
 prepare
 ```
   
   
+apply our blueprint to new data with baked: 
+  
+  
 ```{r}
-baked_train <- bake(prepare, new_data = house_train)
+baked_train <- bake(prepare, new_data = house_train) #apply our blueprint to new data with baked 
 baked_test <- bake(prepare, new_data = house_test)
 baked_train
 ```
@@ -254,7 +275,7 @@ blueprint <- recipe(price ~ ., data = house_train) %>%
   step_dummy(all_nominal(), -all_outcomes(), one_hot = TRUE)
 ```
 
-
+apply resample method , hyper grid (hyperparameter) and supply blueprint (data proccessing) 
 
 ```{r}
 # Specify resampling plan
@@ -278,7 +299,7 @@ knn_fit2 <- train(
 )
 ```
 
-
+see the model result : 
 
 ```{r}
 # print model results
@@ -287,7 +308,7 @@ knn_fit2
 ```
 
 
-
+visualize cross validation result: 
 
 ```{r}
 # plot cross validation results
@@ -301,6 +322,8 @@ ggplot(knn_fit2)
 
 ##### simple linear regression: 
 
+one predictor 
+
 ```{r}
 model1 <- lm(price ~ sqft_living , data = house_train)
 summary(model1)
@@ -310,7 +333,7 @@ summary(model1)
  
  
  multiple linear regression with 2 predictors 
- and with all main features 
+s 
 
 ```{r}
 # OLS model with two predictors
@@ -319,7 +342,7 @@ summary(model2)
 ```
 
 
-
+ and with all main features: 
 
 
 ```{r}
@@ -334,8 +357,8 @@ summary(model3)
 
 fit 3 models  
 
-1. a single predictor, 
-2. two predictors, 
+1. a single predictor 
+2. two predictors 
 3. all possible main effect predictors. 
 
 
@@ -382,7 +405,7 @@ summary(resamples(list(
 
 #### # Model concerns - multicollinearity
 
- we saw in EDA that sqft_above are highly correlated with sqft_living
+ I saw in EDA that sqft_above are highly correlated with sqft_living
 
 
 ```{r}
@@ -402,11 +425,13 @@ cor(house_train$sqft_living, house_train$sqft_above )
 # simple plot
 plot(house_train$sqft_living, house_train$sqft_above )
 ```
+they are correlated 
+
 
 # Principal Component Regression
 
 
-so I will use priciple component regression to avoid multicollinearity 
+so I will use principle component regression to avoid multicollinearity problems 
 
 
 ```{r}
@@ -433,6 +458,108 @@ cv_pcr$results %>%
 # plot cross-validated RMSE
 plot(cv_pcr)
 ```
+#### **Tuning:**
+
+
+```{r}
+# 1. hypergrid
+p <- length(house_train) - 1
+hyper_grid <- expand.grid(ncomp = seq(2, 80, length.out = 10)) 
+
+# 2. PCR
+set.seed(123)
+cv_pcr <- train(
+  price ~ ., 
+  data = house_train, 
+  trControl = cv,
+  method = "pcr", 
+  preProcess = c("zv", "center", "scale"), 
+  tuneGrid = hyper_grid, 
+  metric = "RMSE"
+  )
+
+# RMSE
+cv_pcr$results %>%
+  filter(ncomp == cv_pcr$bestTune$ncomp)
+
+# plot cross-validated RMSE
+plot(cv_pcr)
+```
+
+#### **Partial least squares:**
+
+Using PLS 
+
+```{r}
+# PLS
+set.seed(123)
+cv_pls <- train(
+  price ~ ., 
+  data = house_train, 
+  trControl = cv,
+  method = "pls", #<<
+  preProcess = c("zv", "center", "scale"),
+  tuneGrid = hyper_grid,
+  metric = "RMSE"
+  )
+
+# model with lowest RMSE
+cv_pls$bestTune
+
+cv_pls$results %>%
+  filter(ncomp == as.numeric(cv_pls$bestTune))
+
+# plot cross-validated RMSE
+plot(cv_pls)
+```
+
+
+
+
+
+
+
+#### **Model Comparison**
+
+compare all models 
+
+
+```{r}
+results <- resamples(list(
+  OLS  = cv_model3, 
+  PCR  = cv_pcr, 
+  PLS  = cv_pls
+  ))
+
+summary(results)$statistics$RMSE
+
+# plot results
+p1 <- bwplot(results, metric = "RMSE")
+p2 <- dotplot(results, metric = "RMSE")
+gridExtra::grid.arrange(p1, p2, nrow = 1)  #comparison all models 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
