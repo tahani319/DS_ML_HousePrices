@@ -4,15 +4,15 @@
 #### **Description:**
 
 
-This is a repository of my data science machine learning project 
-is part of immersive data science course with Misk Academy. 
+This is a repository of my data science machine learning project that I worked on 
+as part of immersive data science course with Misk Academy. 
 
 my main goal is to build model to predict house price depending on their features. 
-i use in this project some of algorithims and methods I have learned throught the course:
+I used in this project some of algorithims and methods I have learned throughout the course:
 
 * EDA 
 * data visualization  
-* Feature Engineering 
+* Features Engineering 
 * Linear regression 
 * Priciple components regression 
 * partial least square regression
@@ -30,16 +30,16 @@ it contains iformation about selling house in USA in 2014, it has 18 variables a
 
 attributes: 
 
- * price 
- * sqft_living 
- * sqft_lot
- * sqft_above
- * sqft_basement 
- * bedrooms
- * bathrooms 
- * conditions 
+ * price : price of selling homes 
+ * sqft_living : the square foot of living area of homes 
+ * sqft_lot: square foot of the land 
+ * sqft_above : squre foot of above 
+ * sqft_basement : squre foot of basement 
+ * bedrooms: number of bedrooms
+ * bathrooms: number of bathrooms
+ * conditions: number of conditions  
  * view 
  * waterfront 
- * city 
- * statezip 
+ * city : the city of each selling house 
+ * statezip : zip code of state
  * country 
