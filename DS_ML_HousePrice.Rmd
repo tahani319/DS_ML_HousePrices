@@ -6,12 +6,20 @@ output: html_document
 ---
 
 data from: https://www.kaggle.com/shree1992/housedata
-the data contains information  about houses in USA 
+the data contains information  about selling houses in USAin 2014 
 it contains 18 variables and 4600 observation
 my main goal is to building a model to predict the price of a house
 based on specific features of the house.
 
-
+this ML project include 
+ 
+ 
+ * EDA(Explanatory Data Analysis)
+ * Linear regression
+ * Partial least square regression
+ * 
+ *  Decision Tree Model
+ * Model Validation
 
 ```{r setup, include=TRUE}
 knitr::opts_chunk$set(include = FALSE)
@@ -61,7 +69,7 @@ house$street <- as.factor(house$street)
 ```{r}
 #change bathrooms, bedrooms into numeric 
 
-house$price <- as.numeric(house$price)
+
 house$bedrooms <- as.numeric(house$bedrooms)
 house$bathrooms <- as.numeric(house$bathrooms)
 
@@ -107,6 +115,24 @@ head(house$price)
 ```
 
 
+
+see distribution of target variable:
+
+```{r}
+#see distribution of target variable
+ggplot(house, aes(price)) +
+  geom_density() 
+
+```
+
+
+
+
+
+
+
+
+
 #### **set h2o environment:**
 
 ```{r}
@@ -135,9 +161,47 @@ ggplot(house_train, aes(x = price)) +
             stat = "density", 
             trim = TRUE, col = "red")
 ```
+#### **Features Engineering:**
+
+ applying features enginnering 
+  * imputation outliers
+  * Missing values
+  * log transformation for target variable 
+  * filter zero variance and near-zero variance features
+  * dimension reduction for highly correlated features
 
 
-#### **Missing valuse:** 
+
+first let's explore outliers values in price  data : 
+
+```{r}
+ggplot(house_train, mapping = aes(x = statezip, y = price, fill = statezip)) + 
+  geom_boxplot(outlier.colour = "red", outlier.shape = 5, outlier.size = 4) 
+```
+actually we have outliers in data 
+
+#### Outlier detection and normalizing:
+
+
+```{r}
+# outlier detection and normalizing
+outlier_norm <- function(x){
+   qntile <- quantile(x, probs=c(.25, .75))
+   caps <- quantile(x, probs=c(.05, .95))
+   H <- 1.5 * IQR(x, na.rm = T)
+   x[x < (qntile[1] - H)] <- caps[1]
+   x[x > (qntile[2] + H)] <- caps[2]
+   return(x)}
+
+house_train$price=outlier_norm(house_train$price)
+ggplot(house_train, mapping = aes(x = statezip, y = price, fill = statezip)) + 
+  geom_boxplot(outlier.colour = "red", outlier.shape = 8, outlier.size = 4) 
+```
+
+
+  
+
+#### **Missing values:** 
 
 visualize missing values 
 
@@ -159,78 +223,17 @@ house %>%
     theme(axis.text.y  = element_text(size = 4))
 ```
 
-
 obviously we do not have any missing values. 
 
-#### **Resampling:**
-
-apply KNN model to data 
-
-```{r}
-# Specify resampling strategy
-cv <- trainControl(
-  method = "repeatedcv", 
-  number = 10, 
-  repeats = 5
-)
-
-# Create grid of hyperparameter values
-hyper_grid <- expand.grid(k = seq(2, 25, by = 1))
-
-# Tune a knn model using grid search
-knn_fit <- train(
-  price ~ ., 
-  data = house_train, 
-  method = "knn", 
-  trControl = cv, 
-  tuneGrid = hyper_grid,
-  metric = "RMSE"
-)
-```
 
 
-see results : 
-
-```{r}
-# Print and plot the CV results
-knn_fit
-```
-
-#### **visualize the fit 
-
-```{r}
-ggplot(knn_fit)
-```
-then i applied features engineering and do KNN model to  my data again 
-
-
-
-
-
-#### **Features Engineering:**
-
- applying features enginnering 
-
-  * log transformation for target variable 
-  * filter zero variance and near-zero variance features
-  * dimension reduction for highly correlated features
-  
-  target variable is positively skewed so i will use log transformation : 
-  
-```{r}
-# log transformation target variable
-house_recipe <- recipe(price ~ ., data = house_train) %>%
-  step_log(all_outcomes())
-```
-  
-   
-   
-    blueprint process : 
+#### **blueprint process:** 
  
- Remove near-zero variance features that are categorical.
+Remove near-zero variance features that are categorical.
 Ordinal encode quality-based features 
 Center and scale all numeric features.
 Perform dimension reduction by applying PCA to all numeric features.
+
 
 ```{r}
 blueprint <- recipe(price ~ ., data = house_train) %>%
@@ -242,29 +245,25 @@ blueprint <- recipe(price ~ ., data = house_train) %>%
   
 blueprint
 ```
- 
- 
- Estimate parameters based on the training data of interest: 
-  
+
+
+ Estimate parameters based on the training data of interest:
+
 ```{r}
 prepare <- prep(blueprint, training = house_train) #Estimate parameters based on the training data of interest
 prepare
 ```
-  
-  
+
 apply our blueprint to new data with baked: 
-  
-  
+
 ```{r}
 baked_train <- bake(prepare, new_data = house_train) #apply our blueprint to new data with baked 
 baked_test <- bake(prepare, new_data = house_test)
 baked_train
 ```
-  
-  
-  
-  
-  
+
+
+
 
 ```{r}
 blueprint <- recipe(price ~ ., data = house_train) %>%
@@ -275,7 +274,11 @@ blueprint <- recipe(price ~ ., data = house_train) %>%
   step_dummy(all_nominal(), -all_outcomes(), one_hot = TRUE)
 ```
 
-apply resample method , hyper grid (hyperparameter) and supply blueprint (data proccessing) 
+
+#### **Resampling:**
+
+apply KNN model to the  data 
+
 
 ```{r}
 # Specify resampling plan
@@ -289,7 +292,7 @@ cv <- trainControl(
 hyper_grid <- expand.grid(k = seq(2, 25, by = 1))
 
 # Tune a knn model using grid search
-knn_fit2 <- train(
+knn_fit <- train(
   blueprint, 
   data = house_train, 
   method = "knn", 
@@ -299,22 +302,20 @@ knn_fit2 <- train(
 )
 ```
 
-see the model result : 
+see results :
 
 ```{r}
 # print model results
-knn_fit2
-
+knn_fit
 ```
 
 
-visualize cross validation result: 
+#### **visualize the fit 
 
 ```{r}
 # plot cross validation results
-ggplot(knn_fit2)
+ggplot(knn_fit)
 ```
-
 
 #### Applay Linear regression: 
 
@@ -322,24 +323,35 @@ ggplot(knn_fit2)
 
 ##### simple linear regression: 
 
+I wanted to model a linear relationship between living area of home (sqft_living) and  price. 
+
 one predictor 
 
 ```{r}
-model1 <- lm(price ~ sqft_living , data = house_train)
+model1 <- lm(price ~ sqft_living , data = house_train) #linear regression 
+#one predictor 
+
 summary(model1)
 ```
+
+The estimated coefficients from our model are βˆ0=23391.49 and βˆ1= 248.12. 
+we estimate that the mean selling price increases by 248.12 for each additional one square foot of living area.
+
  
 #### ** multiple linear regression**
  
- 
- multiple linear regression with 2 predictors 
- 
+we wanted to see if the living area of house and the year was it build have affect on price
+so we used multiple linear regression with 2 predictors living area of house (sqft_living)
+ and year of built (yr_built)
+
 
 ```{r}
 # OLS model with two predictors
 model2 <- lm(price ~ sqft_living + yr_built, data = house_train)
 summary(model2)
 ```
+
+
 
 
  and with all main features: 
@@ -357,8 +369,8 @@ summary(model3)
 
 fit 3 models  
 
-1. a single predictor 
-2. two predictors 
+1. Linear regression,  a single predictor 
+2. Multiple linear regression, two predictors 
 3. all possible main effect predictors. 
 
 
@@ -376,10 +388,14 @@ set.seed(123)
 (cv_model1 <- train(
   price ~ sqft_living, 
   data = house_train, 
-  method = "lm", #<<
+  method = "lm", 
   trControl = cv)
 )
 ```
+
+
+ RMSE is $199629.5 (average RMSE across the 10 CV folds). which means about $199629.5 off from the actual sale price.
+
 
 
 
@@ -393,10 +409,22 @@ cv_model2 <- train(
   trControl = cv
 )
 
+#model3
+set.seed(123)
+cv_model3 <- train(
+  price ~ ., 
+  data = house_train, 
+  method = "lm",
+  trControl = cv
+)
+
+```
+```{r}
 # Extract out of sample performance measures
 summary(resamples(list(
   model1 = cv_model1, 
-  model2 = cv_model2
+  model2 = cv_model2,
+  model3 = cv_model3
 )))
 ```
 
@@ -405,7 +433,7 @@ summary(resamples(list(
 
 #### # Model concerns - multicollinearity
 
- I saw in EDA that sqft_above are highly correlated with sqft_living
+ I saw in EDA that sqft_above and sqft_living are correlated
 
 
 ```{r}
@@ -431,7 +459,7 @@ they are correlated
 # Principal Component Regression
 
 
-so I will use principle component regression to avoid multicollinearity problems 
+so I use principle component regression to avoid multicollinearity  
 
 
 ```{r}
@@ -443,7 +471,7 @@ cv_pcr <- train(
   price ~ ., 
   data = house_train, 
   trControl = cv,
-  method = "pcr", #<<
+  method = "pcr", 
   preProcess = c("zv", "center", "scale"), #<<
   tuneGrid = hyper_grid, #<<
   metric = "RMSE"
@@ -488,7 +516,7 @@ plot(cv_pcr)
 
 #### **Partial least squares:**
 
-it Similar to PCR this technique also constructs a set of linear combinations of the inputs for regression, it uses the response variable to aid the construction of the principal components.
+it Similar to PCR, this technique also constructs a set of linear combinations of the inputs for regression, it uses the response variable to aid the construction of the principal components.
 
 
 
@@ -499,7 +527,7 @@ cv_pls <- train(
   price ~ ., 
   data = house_train, 
   trControl = cv,
-  method = "pls", #<<
+  method = "pls", 
   preProcess = c("zv", "center", "scale"),
   tuneGrid = hyper_grid,
   metric = "RMSE"
@@ -514,19 +542,23 @@ cv_pls$results %>%
 # plot cross-validated RMSE
 plot(cv_pls)
 ```
-
-
-
-
-
+#### **Feature interpretaion:**
+  
+Extract and plot 20 of the most important variable 
+  
+```{r}
+vip(cv_pls, num_features = 20, method = "model") #Extract and plot 20 of the most important variable 
+```
 
 
 #### **Model Comparison**
 
-compare all models 
+compare all models OLS, PCR and PLS
 
 
 ```{r}
+#compare all models
+
 results <- resamples(list(
   OLS  = cv_model3, 
   PCR  = cv_pcr, 
@@ -538,13 +570,16 @@ summary(results)$statistics$RMSE
 # plot results
 p1 <- bwplot(results, metric = "RMSE")
 p2 <- dotplot(results, metric = "RMSE")
-gridExtra::grid.arrange(p1, p2, nrow = 1)  #comparison all models 
+gridExtra::grid.arrange(p1, p2, nrow = 1)  
 ```
 
 
 
 #### **Decision trees:**
 
+I built decision trees model to predict house price depending on house features 
+
+##### **Load packages:**
 
 ```{r}
 # Helper packages
@@ -563,39 +598,39 @@ library(pdp)         # for feature effects
 ```
 
 
-
+fit a regression tree using anova method 
 
 
 ```{r}
+#fit a regression tree using rpart
+
 house_dt1 <- rpart(
   formula = price ~ .,
   data    = house_train,
-  method  = "anova"
+  method  = "anova" #to fiiting regression tree 
 )
 ```
 
 
 
-
-
-
+show decision tree output: 
 
 
 ```{r}
-house_dt1
+house_dt1  #show decision tree output
 ```
+it starts with 3220 observations at root node the first variable splits is statezip which is the important predictor 
+to home price 
 
-
-
-
+#### **Visualize regression tree:** 
 
 ```{r}
-rpart.plot(house_dt1)
+rpart.plot(house_dt1) #plot regression tree
 ```
-
+plot cross validated error summary :
 
 ```{r}
-plotcp(house_dt1)
+plotcp(house_dt1) #plot cross validated error summary
 ```
 
 
@@ -619,6 +654,8 @@ abline(v = 11, lty = "dashed")
 house_dt1$cptable
 ```
 
+#### **cross validation result**:
+
 
 ```{r}
 # caret cross validation results
@@ -631,16 +668,22 @@ house_dt3 <- train(
 )
 
 ```
+ 
+#### **visulaziation**: 
 
+visualize RMSE 
+ 
 ```{r}
-ggplot(house_dt3)
+ggplot(house_dt3) #plot RMSE cross validation
 ```
+#### **Feature interpretation:**
 
 
+visualize 30 of top features in decision tree
 
 
 ```{r}
-vip(house_dt3, num_features = 45, geom = "point")
+vip(house_dt3, num_features = 30, geom = "point")
 ```
 
 #### Construct partial dependence plots:
