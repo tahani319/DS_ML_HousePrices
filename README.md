@@ -26,8 +26,7 @@ this repositoy contains Rmd , Html files and jupyter notebook
 I use this data from [kaggle] (https://www.kaggle.com/shree1992/housedata) 
 
 
-it contains iformation about selling house in USA in 2014, it has 18 variables and 4600 observations 
-in USA 
+it contains iformation about selling house in USA in 2014, it has 18 variables and 4600 observations. 
 
 attributes: 
 
