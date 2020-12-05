@@ -38,8 +38,8 @@ attributes:
  * bedrooms: number of bedrooms
  * bathrooms: number of bathrooms
  * conditions: number of conditions  
- * view 
- * waterfront 
  * city : the city of each selling house 
  * statezip : zip code of state
+  * view 
+ * waterfront 
  * country 
